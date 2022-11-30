@@ -1,0 +1,16 @@
+{
+    "Hachcat Cracking Tool": [
+        "http.html:hashcat"
+    ],
+    "BurpSuite": [
+        "http.html:BurpSuite"
+    ],
+    "PowerSploit": [
+        "http.html:PowerSploit"
+    ],
+    "XMRig Monero Cryptominer": [
+        "http.html:XMRig",
+        "http.favicon.hash:-782317534",
+        "http.favicon.hash:1088998712"
+    ]
+}
