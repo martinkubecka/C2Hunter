@@ -1,5 +1,7 @@
 config/config.yml
 reports/
+db/
+backups/
 logs/
 
 
