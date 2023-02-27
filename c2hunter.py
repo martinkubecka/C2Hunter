@@ -6,18 +6,10 @@ from datetime import datetime
 import logging
 import argparse
 import yaml
+import pprint
 
 from src.hunter import Hunter
 from src.database import DatabaseHandler
-
-# Based on the 'C2 Tracker' project
-# - https://github.com/montysecurity/C2-Tracker
-
-# References
-# - https://michaelkoczwara.medium.com/hunting-c2-with-shodan-223ca250d06f
-# - https://michaelkoczwara.medium.com/cobalt-strike-c2-hunting-with-shodan-c448d501a6e2
-# - https://github.com/BushidoUK/OSINT-SearchOperators/blob/main/ShodanAdversaryInfa.md
-# - https://blog.bushidotoken.net/2022/11/detecting-and-fingerprinting.html
 
 
 def banner():
@@ -38,14 +30,18 @@ def parse_args():
         '-q', '--quiet', help="do not print a banner", action='store_true')
     parser.add_argument('-c', '--config', metavar='FILE', default="config/config.yml",
                         help='config file (default: "config/config.yml")')
-    parser.add_argument('--disable-shodan',
+    parser.add_argument('-ds', '--disable-shodan',
                         help="disable querying Shodan", action='store_true')
-    parser.add_argument('--disable-feodotracker',
+    parser.add_argument('-df', '--disable-feodotracker',
                         help="disable querying Feodo Tracker", action='store_true')
-    parser.add_argument('--disable-urlhaus',
+    parser.add_argument('-du', '--disable-urlhaus',
                         help="disable querying URLhaus", action='store_true')
     parser.add_argument('-o', '--output', metavar="DIRECTORY", default="reports",
                         help='output directory (default: "reports/")')
+    parser.add_argument('-p', '--print-active', action='store_true',
+                        help='print filtered active enpoints to the console')
+    parser.add_argument('-drb', '--disable-report-backup', action='store_false',
+                        help='disable file reports backup')
 
     # return parser.parse_args(args=None if sys.argv[1:] else ['--help'])
     return parser.parse_args()
@@ -159,7 +155,8 @@ def directory_structure(output_dir):
         if not os.path.isdir(db_dir):
             print(
                 f"[{time.strftime('%H:%M:%S')}] [INFO] Creating missing directory '{db_dir}' for storing database files")
-            logging.info(f"Creating directory '{db_dir}' for storing database file'")
+            logging.info(
+                f"Creating directory '{db_dir}' for storing database file'")
             os.mkdir(db_dir)
 
     return report_dir, backups_dir, db_dir
@@ -176,11 +173,10 @@ def backup_recent_reports(report_dir, backups_dir):
 
     source_dir = report_dir
     target_dir = new_backup_dir
-    dir_names = os.listdir(report_dir)  # TODO : REWORK
+    dir_names = os.listdir(report_dir)
 
-    print(f"[{time.strftime('%H:%M:%S')}] [INFO] Moving files from '{report_dir}' directory to '{new_backup_dir}' directory ...")
-    logging.info(
-        f"Copying files from '{report_dir}' directory to '{new_backup_dir}' directory")
+    print(f"[{time.strftime('%H:%M:%S')}] [INFO] Copying files into '{new_backup_dir}' directory ...")
+    logging.info(f"Copying files into '{new_backup_dir}' directory ...")
     for dir_name in dir_names:
         file_names = os.listdir(os.path.join(source_dir, dir_name))
         target_subdir = os.path.join(target_dir, dir_name)
@@ -190,6 +186,10 @@ def backup_recent_reports(report_dir, backups_dir):
             source_file = f"{os.path.join(source_dir, dir_name)}/{file_name}"
             shutil.copy(source_file, target_subdir)
 
+
+# TODO : add ThreatFox IOCs
+# https://threatfox.abuse.ch/api/
+# https://threatfox.abuse.ch/export/#json
 
 def main():
     if not sys.platform.startswith('linux'):
@@ -221,6 +221,7 @@ def main():
         print("\nExiting program ...\n")
         sys.exit(1)
 
+    console_active_print = args.print_active
     output_dir = args.output
     report_dir, backups_dir, db_dir = directory_structure(output_dir)
 
@@ -230,27 +231,39 @@ def main():
     database_handler = DatabaseHandler(config, db_dir)
 
     if not args.disable_shodan:
-        c2hunter.query_shodan()
+        shodan_c2_data = c2hunter.query_shodan()
+        database_handler.shodan_table(shodan_c2_data)
         print('-' * os.get_terminal_size().columns)
 
     if not args.disable_feodotracker:
         feodotracker_c2_data = c2hunter.query_feodotracker()
         c2hunter.search_country_code_in_feodotracker(feodotracker_c2_data)
+        database_handler.feodotracker_table(feodotracker_c2_data)
         print('-' * os.get_terminal_size().columns)
 
+    matched_machines_online = []
     if not args.disable_urlhaus:
-        urlhaus_c2_data = c2hunter.query_urlhaus()
-        c2hunter.search_active_C2_from_urlhaus(urlhaus_c2_data)
-        database_handler.urlhaus_db(urlhaus_c2_data)
+        if config.get('country_code'):
+            urlhaus_c2_data = c2hunter.query_urlhaus()  # country_code required for URLhaus Country Feed
+            if urlhaus_c2_data:
+                matched_machines_online = c2hunter.search_active_C2_from_urlhaus(urlhaus_c2_data)
+                database_handler.urlhaus_table(urlhaus_c2_data)
+            else:
+                print(f"[{time.strftime('%H:%M:%S')}] [INFO] URLhaus Country Feed for '{config.get('country_code')}' is empty")
+                logging.info(f"URLhaus Country Feed for '{config.get('country_code')}' is empty")
+
+            print('-' * os.get_terminal_size().columns)
+        else:
+            print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Country code value is required for URLhaus feed")
+            logging.error(f"Country code value is required for URLhaus feed")
+            print('-' * os.get_terminal_size().columns)
+
+    if args.disable_report_backup:
+        backup_recent_reports(report_dir, backups_dir)
         print('-' * os.get_terminal_size().columns)
 
-    # TODO : store backups in DB
-    backup_recent_reports(report_dir, backups_dir)
-    print('-' * os.get_terminal_size().columns)
-
-    # timestamp_output_path = f"{output_dir}/timestamp"
-    # with open(timestamp_output_path, "w") as timestamp_file:
-    #     timestamp_file.write(f"{datetime.today().strftime('%Y-%m-%d')}")
+    if console_active_print and matched_machines_online:
+        pprint.pprint(matched_machines_online)
 
 
 if __name__ == '__main__':

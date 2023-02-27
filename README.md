@@ -33,7 +33,7 @@ $ pip install -r requirements.txt
 ## :eagle: Usage
 
 ```
-usage: c2hunter.py [-h] [-q] [-c FILE] [-o DIRECTORY]
+usage: c2hunter.py [-h] [-q] [-c FILE] [--disable-shodan] [--disable-feodotracker] [--disable-urlhaus] [-o DIRECTORY]
 
 DESCRIPTION
 
@@ -41,8 +41,19 @@ options:
   -h, --help                        show this help message and exit
   -q, --quiet                       do not print a banner
   -c FILE, --config FILE            config file (default: "config/config.yml")
-  -o DIRECTORY, --output DIRECTORY  output directory (default: 'reports/')
+  --disable-shodan                  disable querying Shodan
+  --disable-feodotracker            disable querying Feodo Tracker
+  --disable-urlhaus                 disable querying URLhaus
+  -o DIRECTORY, --output DIRECTORY  output directory (default: "reports/")
 ```
+
+### Examples
+
+
+
+
+
+
 
 ---
 ## :toolbox: Development

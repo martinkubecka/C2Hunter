@@ -5,6 +5,7 @@ import csv
 import json
 import logging
 import requests
+import pprint
 from  colorama import Fore
 import shodan
 from shodan.exception import APIError
@@ -52,6 +53,7 @@ class Hunter:
         # selected_machines = {}  # JSON report of selected machines based on the configured country code  
         selected_entries = []   # list of selected machines
 
+        shodan_c2_data = []
         for product, queries in self.products.items():
             # raw_responses = {}  # unfiltered JSON responses
             raw_responses_entries = []
@@ -140,11 +142,12 @@ class Hunter:
                                 region_code = location.get('region_code')
                             else:
                                 country_name, country_code, city, region_code = "", "", "", ""
-
+                            last_seen = service.get('timestamp')
+                            
                             if not ip in ip_list:
 
                                 entry = [product_name, ip, asn, org, isp, hostnames, country_name,
-                                         country_code, city, region_code]  # used for writing to CSV file
+                                         country_code, city, region_code, last_seen]  # used for writing to CSV file
                                 product_table.append(entry)
 
                                 service_entry = dict(
@@ -158,11 +161,11 @@ class Hunter:
                                     country_code=country_code,
                                     city=city,
                                     region_code=region_code,
-                                    metadata=dict(
-                                        product_query=product,
-                                        search_operator=query
-                                    )
+                                    last_seen=last_seen,
+                                    product_query=product,
+                                    search_operator=query
                                 )
+                                # TODO: ADD one big list of all products for DB caching
                                 product_entries.append(service_entry)
 
                                 if country_code == self.country_code:
@@ -174,6 +177,9 @@ class Hunter:
                 print(
                     f"[{time.strftime('%H:%M:%S')}] [INFO] Processed {len(ip_list)} IP addresses so far")
                 self.logger.info(f"Processed {len(ip_list)} IP addresses")
+
+            # build one list which contains all the products  
+            shodan_c2_data.append(product_entries)
 
             ip_list = list(set(ip_list))
             print(
@@ -189,11 +195,13 @@ class Hunter:
 
             print('.' * terminal_size.columns)
 
-        print(':' * terminal_size.columns)
+        # print(':' * terminal_size.columns)
 
         if selected_entries:
             self.write_matched_machines(selected_entries)
             print('-' * terminal_size.columns)
+
+        return shodan_c2_data
 
     def write_matched_machines(self, selected_entries):
         selected_machines = {}
@@ -236,7 +244,7 @@ class Hunter:
 
     def write_csv_report(self, product_name, product_table):
         fields = ["Product", "IP Address", "ASN", "Organization", "ISP",
-                  "Hostnames", "Country", "Country Code", "City", "Region Code"]
+                  "Hostnames", "Country", "Country Code", "City", "Region Code", "Last Seen"]
         file_name = f"{self.reports_csv_path}/{product_name}.csv"
         print(
             f"[{time.strftime('%H:%M:%S')}] [INFO] Writing CSV report to {file_name} ...")
@@ -307,6 +315,7 @@ class Hunter:
         logging.info("Parsing fetched data")
         data = []
         for line in response_data:
+            # retrieved content has a header created from '#' symbols
             if not line.startswith("#") and len(line) > 0:
                 parsed_line = line.split(',')
                 prepared_data = [item.replace('"', '') for item in parsed_line]
@@ -325,7 +334,8 @@ class Hunter:
                 data.append(entry)
 
         json_object = json.dumps(data, indent=4)
-        self.write_iocs_report(f"urlhaus_feed_C2_{self.country_code}", json_object)
+        if data:    # write only if data is not empty
+            self.write_iocs_report(f"urlhaus_feed_C2_{self.country_code}", json_object)
 
         return data
 
@@ -354,6 +364,8 @@ class Hunter:
                 f"Found active URLs for country code '{self.country_code}' in URLhaus feed")
             json_object = json.dumps(matched_machines_online, indent=4)
             self.write_iocs_report(f"urlhaus_feed_C2_{self.country_code}_active", json_object)
+
+        return matched_machines_online
 
     def write_iocs_report(self, service_name, json_object):
         report_output_path = f"{self.reports_iocs_path}/{service_name}.json"
