@@ -6,11 +6,12 @@
 ---
 <h2 id="table-of-contents">Table of Contents</h2>
 
-- [Pre-requisites](#notebook_with_decorative_cover-pre-requisites)
-  - [Installing Required Packages](#package-installing-required-packages)
-- [Usage](#eagle-usage)
-- [Development](#toolbox-development)
-  - [Virtual environment](#office-virtual-environment)
+- [:notebook_with_decorative_cover: Pre-requisites](#notebook_with_decorative_cover-pre-requisites)
+  - [:package: Installing Required Packages](#package-installing-required-packages)
+  - [:old_key: API Key](#old_key-api-key)
+- [:eagle: Usage](#eagle-usage)
+- [:toolbox: Development](#toolbox-development)
+  - [:office: Virtual environment](#office-virtual-environment)
 
 ---
 ## :notebook_with_decorative_cover: Pre-requisites
@@ -29,11 +30,18 @@ $ git clone https://github.com/martinkubecka/C2Hunter.git
 $ pip install -r requirements.txt
 ```
 
+### :old_key: API Key
+
+- create `config/config.yml` file structured as `config/example.yml`
+- add your Shodan API key to the `config/config.yml` file 
+
+> ***Note:*** *Shodan's Freelancer Plan may not be sufficient based on the frequency with which this application is run.*
+
 ---
 ## :eagle: Usage
 
 ```
-usage: c2hunter.py [-h] [-q] [-c FILE] [--disable-shodan] [--disable-feodotracker] [--disable-urlhaus] [-o DIRECTORY]
+usage: c2hunter.py [-h] [-q] [-c FILE] [-o DIRECTORY] [-p] [-ds] [-df] [-du] [-dt] [-db]
 
 DESCRIPTION
 
@@ -41,19 +49,16 @@ options:
   -h, --help                        show this help message and exit
   -q, --quiet                       do not print a banner
   -c FILE, --config FILE            config file (default: "config/config.yml")
-  --disable-shodan                  disable querying Shodan
-  --disable-feodotracker            disable querying Feodo Tracker
-  --disable-urlhaus                 disable querying URLhaus
   -o DIRECTORY, --output DIRECTORY  output directory (default: "reports/")
+  -p, --print-active                print filtered active enpoints to the console
+
+disable options:
+  -ds, --disable-shodan             disable querying Shodan
+  -df, --disable-feodotracker       disable querying Feodo Tracker
+  -du, --disable-urlhaus            disable querying URLhaus
+  -dt, --disable-threatfox          disable querying ThreatFox
+  -db, --disable-backup             disable file reports backup
 ```
-
-### Examples
-
-
-
-
-
-
 
 ---
 ## :toolbox: Development

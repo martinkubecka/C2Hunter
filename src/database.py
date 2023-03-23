@@ -13,7 +13,7 @@ class DatabaseHandler:
         self.connection = sqlite3.connect("db/c2_servers.db")
 
     def urlhaus_table(self, urlhaus_c2_data):
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Cashing retrieved data into 'urlhaus' table")
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Cashing retrieved data into 'urlhaus' table ...")
         logging.info(f"Cashing retrieved data into 'urlhaus' table")
         cursor = self.connection.cursor()
         create_table_query = '''CREATE TABLE IF NOT EXISTS urlhaus (
@@ -39,7 +39,7 @@ class DatabaseHandler:
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
 
         updated_urls = []
-        for entry in reversed(urlhaus_c2_data):
+        for entry in urlhaus_c2_data:
             data = tuple(entry.values())
             cursor.execute(insert_query, data)
             # update the URL status to the retrieved value
@@ -56,7 +56,7 @@ class DatabaseHandler:
 
         self.connection.commit()
 
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Total number of {self.connection.total_changes} rows inserted, deleted or updated since the database connection")
+        # print(f"[{time.strftime('%H:%M:%S')}] [INFO] Total number of {self.connection.total_changes} rows inserted, deleted or updated since the database connection")
         logging.info(f"Total number of {self.connection.total_changes} rows inserted, deleted, updated since the database connection")
 
         if len(updated_urls) > 0:
@@ -64,14 +64,14 @@ class DatabaseHandler:
             logging.info(f"Updated the status value in {len(updated_urls)} URLs")
             # for url in updated_urls:
             #     print(url)
-        # else:
-        #     print(f"[{time.strftime('%H:%M:%S')}] [INFO] No cached entries were updated in 'urlhaus' table")
-        #     logging.info(f"No cached entries were updated in 'urlhaus' table")
+        else:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] No cached entries were updated in 'urlhaus' table")
+            logging.info(f"No cached entries were updated in 'urlhaus' table")
 
         cursor.close()
 
     def feodotracker_table(self, feodotracker_c2_data):
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Cashing retrieved data into 'feodotracker' table")
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Cashing retrieved data into 'feodotracker' table ...")
         logging.info(f"Cashing retrieved data into 'feodotracker' table")
         cursor = self.connection.cursor()
         create_table_query = '''CREATE TABLE IF NOT EXISTS feodotracker (
@@ -123,7 +123,7 @@ class DatabaseHandler:
 
         self.connection.commit()
 
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Total number of {self.connection.total_changes} rows inserted, deleted or updated since the database connection")
+        # print(f"[{time.strftime('%H:%M:%S')}] [INFO] Total number of {self.connection.total_changes} rows inserted, deleted or updated since the database connection")
         logging.info(f"Total number of {self.connection.total_changes} rows inserted, deleted, updated since the database connection")
 
         if len(updated_ip_address) > 0:
@@ -131,14 +131,79 @@ class DatabaseHandler:
             logging.info(f"Updated the status value in {len(updated_ip_address)} IP addresses")
         #     for url in updated_ip_address:
         #         print(url)
-        # else:
-        #     print(f"[{time.strftime('%H:%M:%S')}] [INFO] No cached entries were updated in 'feodotracker' table")
-        #     logging.info(f"No cached entries were updated in 'feodotracker' table")
+        else:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] No cached entries were updated in 'feodotracker' table")
+            logging.info(f"No cached entries were updated in 'feodotracker' table")
+
+        cursor.close()
+
+    def threatfox_table(self, threatfox_data):
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Cashing retrieved data into 'threatfox' table ...")
+        logging.info(f"Cashing retrieved data into 'threatfox' table")
+        cursor = self.connection.cursor()
+
+        create_table_query = '''CREATE TABLE IF NOT EXISTS threatfox (
+                                id TEXT PRIMARY KEY,
+                                url TEXT,
+                                threat_type TEXT,
+                                malware TEXT,
+                                first_seen_utc TEXT,
+                                last_seen_utc TEXT,
+                                confidence_level TEXT,
+                                tags TEXT)'''
+        cursor.execute(create_table_query)
+        
+        insert_query = '''INSERT OR IGNORE INTO threatfox (
+                            id,
+                            url,
+                            threat_type,
+                            malware,
+                            first_seen_utc,
+                            last_seen_utc,
+                            confidence_level,
+                            tags)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
+
+        updated_urls = []
+        for entry in threatfox_data:
+            url = entry.get('url')
+            first_seen_utc = entry.get('first_seen_utc')
+            entry_id = hashlib.sha256(f"{url}:{first_seen_utc}".encode('utf-8')).hexdigest()
+            data = (entry_id,) + tuple(entry.values())
+            cursor.execute(insert_query, data)
+            # update 'last_seen_utc' if changed
+            last_seen_utc = entry.get('last_seen_utc')
+            if last_seen_utc:
+                cursor.execute('''UPDATE threatfox
+                            SET last_seen_utc = ?
+                            WHERE id = ? AND last_seen_utc != ?''',
+                        (last_seen_utc, entry_id, last_seen_utc))
+
+                # if entry was updated, add its URL to a list of updated URLs
+                if cursor.rowcount > 0:
+                    updated_urls.append(f"{entry.get('url')} : {entry.get('first_seen_utc')}")
+
+        # for url in updated_urls:
+        #     print(url)
+
+        self.connection.commit()
+
+        # print(f"[{time.strftime('%H:%M:%S')}] [INFO] Total number of {self.connection.total_changes} rows inserted, deleted or updated since the database connection")
+        logging.info(f"Total number of {self.connection.total_changes} rows inserted, deleted, updated since the database connection")
+
+        if len(updated_urls) > 0:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Updated 'last seen' value in {len(updated_urls)} URLs")
+            logging.info(f"Updated 'last seen' value in {len(updated_urls)} URLs")
+            # for url in updated_urls:
+            #     print(url)
+        else:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] No cached entries were updated in 'threatfox' table")
+            logging.info(f"No cached entries were updated in 'threatfox' table")
 
         cursor.close()
 
     def shodan_table(self, shodan_data):
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Cashing retrieved data into 'shodan' table")
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Cashing retrieved data into 'shodan' table ...")
         logging.info(f"Cashing retrieved data into 'shodan' table")
         cursor = self.connection.cursor()
         create_table_query = '''CREATE TABLE IF NOT EXISTS shodan (

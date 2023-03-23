@@ -7,6 +7,7 @@ import logging
 import requests
 import pprint
 from  colorama import Fore
+import zipfile
 import shodan
 from shodan.exception import APIError
 
@@ -27,8 +28,9 @@ class Hunter:
         self.reports_raw_path = f"{self.reports_path}/raw"
         self.reports_iocs_path = f"{self.reports_path}/iocs"
 
-        self.feodotracker_c2_url = self.config.get('feeds').get('feodotracker_c2')
-        self.urlhaus_feed_url = f"{self.config.get('feeds').get('urlhaus_feed')}{self.country_code}"
+        self.feodotracker_c2_url = self.config.get('feeds').get('feodotracker')
+        self.urlhaus_feed_url = f"{self.config.get('feeds').get('urlhaus')}{self.country_code}" # URLhaus requires some CC
+        self.threatfox_feed_url = self.config.get('feeds').get('threatfox')
 
         self.products = self.get_search_operators("c2")  # "malware", "tools"
 
@@ -367,10 +369,63 @@ class Hunter:
 
         return matched_machines_online
 
+    def get_threatfox_iocs(self):
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching recent ThreatFox feed ...")
+        logging.info(f"Fetching recent ThreatFox feed ...'")
+        
+        response = requests.get(self.threatfox_feed_url)
+
+        if response.status_code == 200:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Successfully downloaded zip compressed data dump ...")
+            logging.info(f"Successfully downloaded zip compressed data dump ...'")
+            # save the content of the response as a binary file
+            with open("threatfox_urls.zip", "wb") as f:
+                f.write(response.content)
+
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Extracting ThreatFox IOCs feed from the retrieved zip file ...")
+            logging.info(f"Extracting ThreatFox IOCs feed from the retrieved zip file ...'")
+            with zipfile.ZipFile("threatfox_urls.zip", "r") as zip_ref:
+                zip_ref.extractall(f"{self.reports_iocs_path}/")
+
+            # remove the zip file
+            logging.info(f"Removing retrieved zip file ...'")
+            os.remove("threatfox_urls.zip")
+
+            # rename extracted json
+            logging.info(f"Renaming extracted ThreatFox JSON feed ...'")
+            os.rename('reports/iocs/full_urls.json', 'reports/iocs/threatfox_C2.json')
+
+            # load the JSON file
+            logging.info(f"Loading extracted ThreatFox JSON feed ...'")
+            with open("reports/iocs/threatfox_C2.json", "r") as f:
+                threatfox_urls = json.load(f)
+
+            # parse threatfox iocs
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Parsing extracted ThreatFox IOCs ...")
+            logging.info("Parsing extracted ThreatFox IOCs")
+            data = []
+            for key, value in threatfox_urls.items():
+                ioc_data = value[0]
+                entry = dict(
+                    url=ioc_data.get('ioc_value'),
+                    threat_type=ioc_data.get('threat_type'),
+                    malware=ioc_data.get('malware_printable'),
+                    first_seen_utc=ioc_data.get('first_seen_utc'),
+                    last_seen_utc=ioc_data.get('last_seen_utc'),
+                    confidence_level=ioc_data.get('confidence_level'),
+                    tags=ioc_data.get('tags')
+                )
+                data.append(entry)
+            
+            return data
+
+        else:
+            return
+
     def write_iocs_report(self, service_name, json_object):
         report_output_path = f"{self.reports_iocs_path}/{service_name}.json"
         print(
-            f"[{time.strftime('%H:%M:%S')}] [INFO] Writing IOCs to '{report_output_path}'")
+            f"[{time.strftime('%H:%M:%S')}] [INFO] Writing IOCs to '{report_output_path} ...'")
         logging.info(f"Writing IOCs to '{report_output_path}'")
         with open(report_output_path, "w") as output:
             output.write(json_object)

@@ -26,21 +26,25 @@ def parse_args():
     parser = argparse.ArgumentParser(formatter_class=arg_formatter(
     ), description='DESCRIPTION')
 
-    parser.add_argument(
-        '-q', '--quiet', help="do not print a banner", action='store_true')
+    parser.add_argument('-q', '--quiet', help="do not print a banner", action='store_true')
     parser.add_argument('-c', '--config', metavar='FILE', default="config/config.yml",
                         help='config file (default: "config/config.yml")')
-    parser.add_argument('-ds', '--disable-shodan',
-                        help="disable querying Shodan", action='store_true')
-    parser.add_argument('-df', '--disable-feodotracker',
-                        help="disable querying Feodo Tracker", action='store_true')
-    parser.add_argument('-du', '--disable-urlhaus',
-                        help="disable querying URLhaus", action='store_true')
     parser.add_argument('-o', '--output', metavar="DIRECTORY", default="reports",
                         help='output directory (default: "reports/")')
     parser.add_argument('-p', '--print-active', action='store_true',
                         help='print filtered active enpoints to the console')
-    parser.add_argument('-drb', '--disable-report-backup', action='store_false',
+
+    disable_group = parser.add_argument_group('disable options')
+    disable_group.add_argument('-ds', '--disable-shodan',
+                        help="disable querying Shodan", action='store_true')
+    disable_group.add_argument('-df', '--disable-feodotracker',
+                        help="disable querying Feodo Tracker", action='store_true')
+    disable_group.add_argument('-du', '--disable-urlhaus',
+                        help="disable querying URLhaus", action='store_true')
+    disable_group.add_argument('-dt', '--disable-threatfox',
+                        help="disable querying ThreatFox", action='store_true')
+    
+    disable_group.add_argument('-db', '--disable-backup', action='store_false',
                         help='disable file reports backup')
 
     # return parser.parse_args(args=None if sys.argv[1:] else ['--help'])
@@ -187,10 +191,6 @@ def backup_recent_reports(report_dir, backups_dir):
             shutil.copy(source_file, target_subdir)
 
 
-# TODO : add ThreatFox IOCs
-# https://threatfox.abuse.ch/api/
-# https://threatfox.abuse.ch/export/#json
-
 def main():
     if not sys.platform.startswith('linux'):
         print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Unsupported platform")
@@ -258,7 +258,18 @@ def main():
             logging.error(f"Country code value is required for URLhaus feed")
             print('-' * os.get_terminal_size().columns)
 
-    if args.disable_report_backup:
+    if not args.disable_threatfox:
+        threatfox_data = c2hunter.get_threatfox_iocs()
+        # pprint.pprint(threatfox_data[0])
+        # for entry in threatfox_data:
+        #     for k, v in entry.items():
+        #         if v == "https://t.me/tgch_hijuly":
+        #             print(entry)
+
+        database_handler.threatfox_table(threatfox_data)
+        print('-' * os.get_terminal_size().columns)
+
+    if args.disable_backup:
         backup_recent_reports(report_dir, backups_dir)
         print('-' * os.get_terminal_size().columns)
 
