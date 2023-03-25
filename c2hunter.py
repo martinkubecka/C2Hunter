@@ -260,12 +260,6 @@ def main():
 
     if not args.disable_threatfox:
         threatfox_data = c2hunter.get_threatfox_iocs()
-        # pprint.pprint(threatfox_data[0])
-        # for entry in threatfox_data:
-        #     for k, v in entry.items():
-        #         if v == "https://t.me/tgch_hijuly":
-        #             print(entry)
-
         database_handler.threatfox_table(threatfox_data)
         print('-' * os.get_terminal_size().columns)
 

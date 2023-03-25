@@ -144,7 +144,8 @@ class DatabaseHandler:
 
         create_table_query = '''CREATE TABLE IF NOT EXISTS threatfox (
                                 id TEXT PRIMARY KEY,
-                                url TEXT,
+                                ioc TEXT,
+                                ioc_type TEXT,
                                 threat_type TEXT,
                                 malware TEXT,
                                 first_seen_utc TEXT,
@@ -155,20 +156,21 @@ class DatabaseHandler:
         
         insert_query = '''INSERT OR IGNORE INTO threatfox (
                             id,
-                            url,
+                            ioc,
+                            ioc_type,
                             threat_type,
                             malware,
                             first_seen_utc,
                             last_seen_utc,
                             confidence_level,
                             tags)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
-        updated_urls = []
+        updated_iocs = []
         for entry in threatfox_data:
-            url = entry.get('url')
+            ioc = entry.get('ioc')
             first_seen_utc = entry.get('first_seen_utc')
-            entry_id = hashlib.sha256(f"{url}:{first_seen_utc}".encode('utf-8')).hexdigest()
+            entry_id = hashlib.sha256(f"{ioc}:{first_seen_utc}".encode('utf-8')).hexdigest()
             data = (entry_id,) + tuple(entry.values())
             cursor.execute(insert_query, data)
             # update 'last_seen_utc' if changed
@@ -179,23 +181,20 @@ class DatabaseHandler:
                             WHERE id = ? AND last_seen_utc != ?''',
                         (last_seen_utc, entry_id, last_seen_utc))
 
-                # if entry was updated, add its URL to a list of updated URLs
+                # if entry was updated, add IOC to a list of updated IOCs
                 if cursor.rowcount > 0:
-                    updated_urls.append(f"{entry.get('url')} : {entry.get('first_seen_utc')}")
-
-        # for url in updated_urls:
-        #     print(url)
+                    updated_iocs.append(f"{entry.get('ioc')} : {entry.get('first_seen_utc')}")
 
         self.connection.commit()
 
         # print(f"[{time.strftime('%H:%M:%S')}] [INFO] Total number of {self.connection.total_changes} rows inserted, deleted or updated since the database connection")
         logging.info(f"Total number of {self.connection.total_changes} rows inserted, deleted, updated since the database connection")
 
-        if len(updated_urls) > 0:
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Updated 'last seen' value in {len(updated_urls)} URLs")
-            logging.info(f"Updated 'last seen' value in {len(updated_urls)} URLs")
-            # for url in updated_urls:
-            #     print(url)
+        if len(updated_iocs) > 0:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Updated 'last seen' value in {len(updated_iocs)} IOCs")
+            logging.info(f"Updated 'last seen' value in {len(updated_iocs)} IOCs")
+            # for ioc in updated_iocs:
+            #     print(ioc)
         else:
             print(f"[{time.strftime('%H:%M:%S')}] [INFO] No cached entries were updated in 'threatfox' table")
             logging.info(f"No cached entries were updated in 'threatfox' table")

@@ -370,8 +370,8 @@ class Hunter:
         return matched_machines_online
 
     def get_threatfox_iocs(self):
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching recent ThreatFox feed ...")
-        logging.info(f"Fetching recent ThreatFox feed ...'")
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching ThreatFox full data dump ...")
+        logging.info(f"Fetching ThreatFox full data dump ...'")
         
         response = requests.get(self.threatfox_feed_url)
 
@@ -379,21 +379,21 @@ class Hunter:
             print(f"[{time.strftime('%H:%M:%S')}] [INFO] Successfully downloaded zip compressed data dump ...")
             logging.info(f"Successfully downloaded zip compressed data dump ...'")
             # save the content of the response as a binary file
-            with open("threatfox_urls.zip", "wb") as f:
+            with open("threatfox.zip", "wb") as f:
                 f.write(response.content)
 
             print(f"[{time.strftime('%H:%M:%S')}] [INFO] Extracting ThreatFox IOCs feed from the retrieved zip file ...")
             logging.info(f"Extracting ThreatFox IOCs feed from the retrieved zip file ...'")
-            with zipfile.ZipFile("threatfox_urls.zip", "r") as zip_ref:
+            with zipfile.ZipFile("threatfox.zip", "r") as zip_ref:
                 zip_ref.extractall(f"{self.reports_iocs_path}/")
 
             # remove the zip file
             logging.info(f"Removing retrieved zip file ...'")
-            os.remove("threatfox_urls.zip")
+            os.remove("threatfox.zip")
 
             # rename extracted json
             logging.info(f"Renaming extracted ThreatFox JSON feed ...'")
-            os.rename('reports/iocs/full_urls.json', 'reports/iocs/threatfox_C2.json')
+            os.rename('reports/iocs/full.json', 'reports/iocs/threatfox_C2.json')
 
             # load the JSON file
             logging.info(f"Loading extracted ThreatFox JSON feed ...'")
@@ -407,7 +407,8 @@ class Hunter:
             for key, value in threatfox_urls.items():
                 ioc_data = value[0]
                 entry = dict(
-                    url=ioc_data.get('ioc_value'),
+                    ioc=ioc_data.get('ioc_value'),
+                    ioc_type=ioc_data.get('ioc_type'),
                     threat_type=ioc_data.get('threat_type'),
                     malware=ioc_data.get('malware_printable'),
                     first_seen_utc=ioc_data.get('first_seen_utc'),
