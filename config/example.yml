@@ -1,4 +1,10 @@
 api_keys:
   shodan: "123456789abcdefgh"
 
+feeds:
+  feodotracker: https://feodotracker.abuse.ch/downloads/ipblocklist.json
+  urlhaus: https://urlhaus.abuse.ch/downloads/csv/
+  urlhaus_cc_feed: https://urlhaus.abuse.ch/feeds/country/
+  threatfox: https://threatfox.abuse.ch/export/json/full/
+
 country_code: "SK"

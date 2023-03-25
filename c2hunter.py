@@ -31,6 +31,8 @@ def parse_args():
                         help='config file (default: "config/config.yml")')
     parser.add_argument('-o', '--output', metavar="DIRECTORY", default="reports",
                         help='output directory (default: "reports/")')
+    parser.add_argument('-s', '--search-country-code', action='store_true',
+                        help='search IOCs based on configured country code')
     parser.add_argument('-p', '--print-active', action='store_true',
                         help='print filtered active enpoints to the console')
 
@@ -235,28 +237,35 @@ def main():
         database_handler.shodan_table(shodan_c2_data)
         print('-' * os.get_terminal_size().columns)
 
+    feodotracker_cc = []
+    feodotracker_cc_active = []
     if not args.disable_feodotracker:
         feodotracker_c2_data = c2hunter.query_feodotracker()
-        c2hunter.search_country_code_in_feodotracker(feodotracker_c2_data)
         database_handler.feodotracker_table(feodotracker_c2_data)
-        print('-' * os.get_terminal_size().columns)
 
-    matched_machines_online = []
-    if not args.disable_urlhaus:
-        if config.get('country_code'):
-            urlhaus_c2_data = c2hunter.query_urlhaus()  # country_code required for URLhaus Country Feed
-            if urlhaus_c2_data:
-                matched_machines_online = c2hunter.search_active_C2_from_urlhaus(urlhaus_c2_data)
-                database_handler.urlhaus_table(urlhaus_c2_data)
+        if args.search_country_code:
+            if config.get('country_code'):
+                feodotracker_cc, feodotracker_cc_active = c2hunter.search_feodotracker(feodotracker_c2_data)
+                print('-' * os.get_terminal_size().columns)
             else:
-                print(f"[{time.strftime('%H:%M:%S')}] [INFO] URLhaus Country Feed for '{config.get('country_code')}' is empty")
-                logging.info(f"URLhaus Country Feed for '{config.get('country_code')}' is empty")
+                print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Country code value is required for the selected search option")
+                logging.error(f"Country code value is required for the selected search option")
+                print('-' * os.get_terminal_size().columns)
 
-            print('-' * os.get_terminal_size().columns)
-        else:
-            print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Country code value is required for URLhaus feed")
-            logging.error(f"Country code value is required for URLhaus feed")
-            print('-' * os.get_terminal_size().columns)
+    urlhaus_cc_active = []
+    if not args.disable_urlhaus:
+        urlhaus_c2_data = c2hunter.query_urlhaus()
+        database_handler.urlhaus_table(urlhaus_c2_data)
+        
+        if args.search_country_code:
+            if config.get('country_code'):
+                urlhaus_cc_data = c2hunter.query_urlhaus_cc()
+                urlhaus_cc_active = c2hunter.search_urlhaus(urlhaus_cc_data)
+                print('-' * os.get_terminal_size().columns)
+            else:
+                print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Country code value is required for the selected search option")
+                logging.error(f"Country code value is required for the selected search option")
+                print('-' * os.get_terminal_size().columns)
 
     if not args.disable_threatfox:
         threatfox_data = c2hunter.get_threatfox_iocs()
@@ -267,8 +276,17 @@ def main():
         backup_recent_reports(report_dir, backups_dir)
         print('-' * os.get_terminal_size().columns)
 
-    if console_active_print and matched_machines_online:
-        pprint.pprint(matched_machines_online)
+    if console_active_print:
+        if urlhaus_cc_active:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in URLhaus IOCs with country code '{config.get('country_code')}' ...")
+            logging.info(f"Listing found active machines in URLhaus IOCs with country code '{config.get('country_code')}'")
+            pprint.pprint(urlhaus_cc_active)
+            print('-' * os.get_terminal_size().columns)
+        if feodotracker_cc_active:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in Feodo Tracker IOCs with country code '{config.get('country_code')}' ...")
+            logging.info(f"Listing found active machines in Feodo Tracker IOCs with country code '{config.get('country_code')}'")
+            pprint.pprint(feodotracker_cc_active)
+            print('-' * os.get_terminal_size().columns)
 
 
 if __name__ == '__main__':

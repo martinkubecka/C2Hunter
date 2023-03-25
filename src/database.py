@@ -20,23 +20,21 @@ class DatabaseHandler:
                                 date_added TEXT,
                                 url TEXT PRIMARY KEY,
                                 url_status TEXT,
+                                last_online TEXT,
                                 threat TEXT,
-                                host TEXT,
-                                ip_address TEXT,
-                                asn TEXT,
-                                country_code TEXT)'''
+                                tags TEXT,
+                                urlhaus_link TEXT)'''
         cursor.execute(create_table_query)
 
         insert_query = '''INSERT OR IGNORE INTO urlhaus (
                           date_added,
                           url,
                           url_status,
+                          last_online,
                           threat,
-                          host,
-                          ip_address,
-                          asn,
-                          country_code)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
+                          tags,
+                          urlhaus_link)
+                          VALUES (?, ?, ?, ?, ?, ?, ?)'''
 
         updated_urls = []
         for entry in urlhaus_c2_data:

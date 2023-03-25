@@ -29,7 +29,8 @@ class Hunter:
         self.reports_iocs_path = f"{self.reports_path}/iocs"
 
         self.feodotracker_c2_url = self.config.get('feeds').get('feodotracker')
-        self.urlhaus_feed_url = f"{self.config.get('feeds').get('urlhaus')}{self.country_code}" # URLhaus requires some CC
+        self.urlhaus_feed_url = self.config.get('feeds').get('urlhaus')
+        self.urlhaus_cc_feed_url = f"{self.config.get('feeds').get('urlhaus_cc_feed')}{self.country_code}" 
         self.threatfox_feed_url = self.config.get('feeds').get('threatfox')
 
         self.products = self.get_search_operators("c2")  # "malware", "tools"
@@ -267,7 +268,7 @@ class Hunter:
 
         return feodotracker_c2
 
-    def search_country_code_in_feodotracker(self, feodotracker_c2):
+    def search_feodotracker(self, feodotracker_c2):
         print(f"[{time.strftime('%H:%M:%S')}] [INFO] Searching for country code '{self.country_code}' in Feodo Tracker IOCs ...")
         logging.info(f"Searching for country code '{self.country_code}' in IOCs ...")
         
@@ -305,11 +306,72 @@ class Hunter:
                 json_object = json.dumps(matched_machines_online, indent=4)
                 self.write_iocs_report(f"feodotracker_C2_{self.country_code}_active", json_object)
 
+        return matched_machines, matched_machines_online
+
     def query_urlhaus(self):
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching URLhaus full data dump ...")
+        logging.info(f"Fetching URLhaus full data dump ...'")
+
+        response = requests.get(self.urlhaus_feed_url)
+
+        if response.status_code == 200:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Successfully downloaded zip compressed data dump ...")
+            logging.info(f"Successfully downloaded zip compressed data dump ...'")
+            # save the content of the response as a binary file
+            with open("urlhaus.zip", "wb") as f:
+                f.write(response.content)
+
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Extracting URLhaus IOCs feed from the retrieved zip file ...")
+            logging.info(f"Extracting URLhaus IOCs feed from the retrieved zip file ...'")
+            with zipfile.ZipFile("urlhaus.zip", "r") as zip_ref:
+                zip_ref.extractall(f"{self.reports_iocs_path}/")
+
+            # remove the zip file
+            logging.info(f"Removing retrieved zip file ...'")
+            os.remove("urlhaus.zip")
+
+            # rename extracted csv
+            logging.info(f"Renaming extracted URLhaus CSV feed ...'")
+            os.rename(f"{self.reports_iocs_path}/csv.txt", f"{self.reports_iocs_path}/urlhaus.csv")
+
+            # load extracted csv
+            logging.info(f"Loading extracted URLhaus CSV feed ...'")
+            with open(f"{self.reports_iocs_path}/urlhaus.csv", "r") as urlhaus_feed:
+                response_data = urlhaus_feed.read().splitlines()
+
+            # remove extracted csv
+            logging.info(f"Removing extracted URLhaus CSV feed ...'")
+            os.remove(f"{self.reports_iocs_path}/urlhaus.csv")
+
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Parsing fetched data ...")
+            logging.info("Parsing fetched data")
+            data = []
+            for line in response_data:
+                # retrieved content has a header created from '#' symbols
+                if not line.startswith("#") and len(line) > 0:
+                    # id,dateadded,url,url_status,last_online,threat,tags,urlhaus_link,reporter
+                    prepared_data = list(csv.reader([line]))[0]
+                    entry = dict(
+                        date_added=prepared_data[1],
+                        url=prepared_data[2],
+                        url_status=prepared_data[3],
+                        last_online=prepared_data[4],
+                        threat=prepared_data[5],
+                        tags=prepared_data[6],
+                        urlhaus_link=prepared_data[7]
+                    )
+                    data.append(entry)
+
+            if data:
+                self.write_iocs_report(f"urlhaus_C2", json.dumps(data, indent=4))
+
+        return data
+
+    def query_urlhaus_cc(self):
         print(f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching recent URLhaus Country feed for '{self.country_code}' ...")
         logging.info(f"Fetching recent URLhaus Country feed for '{self.country_code}'")
 
-        response = requests.get(self.urlhaus_feed_url)
+        response = requests.get(self.urlhaus_cc_feed_url)
         response_content = response.content.decode("utf-8")
         response_data = response_content.split("\n")
 
@@ -319,10 +381,7 @@ class Hunter:
         for line in response_data:
             # retrieved content has a header created from '#' symbols
             if not line.startswith("#") and len(line) > 0:
-                parsed_line = line.split(',')
-                prepared_data = [item.replace('"', '') for item in parsed_line]
-
-                # TODO: add check if the first result from the respone is the same as the one already cached (e.g. check 'date_added' and 'url')
+                prepared_data = list(csv.reader([line]))[0]
                 entry = dict(
                     date_added=prepared_data[0],
                     url=prepared_data[1],
@@ -337,11 +396,11 @@ class Hunter:
 
         json_object = json.dumps(data, indent=4)
         if data:    # write only if data is not empty
-            self.write_iocs_report(f"urlhaus_feed_C2_{self.country_code}", json_object)
+            self.write_iocs_report(f"urlhaus_C2_{self.country_code}", json_object)
 
         return data
 
-    def search_active_C2_from_urlhaus(self, urlhaus_feed):
+    def search_urlhaus(self, urlhaus_feed):
 
         print(f"[{time.strftime('%H:%M:%S')}] [INFO] Searching in URLhaus feed for active URLs whose domain name resolve to '{self.country_code}' IP address ...")
         logging.info(f"Searching in URLhaus feed for active URLs whose domain name resolve to '{self.country_code}' IP address ...")
@@ -365,7 +424,7 @@ class Hunter:
             logging.info(
                 f"Found active URLs for country code '{self.country_code}' in URLhaus feed")
             json_object = json.dumps(matched_machines_online, indent=4)
-            self.write_iocs_report(f"urlhaus_feed_C2_{self.country_code}_active", json_object)
+            self.write_iocs_report(f"urlhaus_C2_{self.country_code}_active", json_object)
 
         return matched_machines_online
 
@@ -393,11 +452,11 @@ class Hunter:
 
             # rename extracted json
             logging.info(f"Renaming extracted ThreatFox JSON feed ...'")
-            os.rename('reports/iocs/full.json', 'reports/iocs/threatfox_C2.json')
+            os.rename(f"{self.reports_iocs_path}/full.json", f"{self.reports_iocs_path}/threatfox_C2.json")
 
             # load the JSON file
             logging.info(f"Loading extracted ThreatFox JSON feed ...'")
-            with open("reports/iocs/threatfox_C2.json", "r") as f:
+            with open(f"{self.reports_iocs_path}/threatfox_C2.json", "r") as f:
                 threatfox_urls = json.load(f)
 
             # parse threatfox iocs
