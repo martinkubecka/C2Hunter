@@ -41,7 +41,7 @@ $ pip install -r requirements.txt
 ## :eagle: Usage
 
 ```
-usage: c2hunter.py [-h] [-q] [-c FILE] [-o DIRECTORY] [-p] [-ds] [-df] [-du] [-dt] [-db]
+usage: c2hunter.py [-h] [-q] [-c FILE] [-o DIRECTORY] [-s] [-p] [-ds] [-df] [-du] [-dt] [-db]
 
 DESCRIPTION
 
@@ -50,6 +50,7 @@ options:
   -q, --quiet                       do not print a banner
   -c FILE, --config FILE            config file (default: "config/config.yml")
   -o DIRECTORY, --output DIRECTORY  output directory (default: "reports/")
+  -s, --search-country-code         search IoCs based on the configured country code
   -p, --print-active                print filtered active enpoints to the console
 
 disable options:

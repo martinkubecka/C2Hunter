@@ -258,9 +258,9 @@ class Hunter:
             write.writerows(product_table)
 
     def query_feodotracker(self):
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching latest Feodo Tracker's Botnet C2 IOCs ...")
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching latest Feodo Tracker's Botnet C2 IoCs ...")
         logging.info(
-            f"Fetching latest Feodo Tracker's Botnet C2 IOCs")
+            f"Fetching latest Feodo Tracker's Botnet C2 IoCs")
         response = requests.get(self.feodotracker_c2_url)
         feodotracker_c2 = json.loads(response.content.decode("utf-8"))
         json_object = json.dumps(feodotracker_c2, indent=4)
@@ -269,8 +269,8 @@ class Hunter:
         return feodotracker_c2
 
     def search_feodotracker(self, feodotracker_c2):
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Searching for country code '{self.country_code}' in Feodo Tracker IOCs ...")
-        logging.info(f"Searching for country code '{self.country_code}' in IOCs ...")
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Searching for country code '{self.country_code}' in Feodo Tracker IoCs ...")
+        logging.info(f"Searching for country code '{self.country_code}' in IoCs ...")
         
         found = False
         found_active = False
@@ -288,12 +288,12 @@ class Hunter:
 
         if not found:
             print(
-                f"[{time.strftime('%H:%M:%S')}] [INFO] {Fore.GREEN}No matches for country code '{self.country_code}' were found in Feodo Tracker IOCs{Fore.RESET}")
+                f"[{time.strftime('%H:%M:%S')}] [INFO] {Fore.GREEN}No matches for country code '{self.country_code}' were found in Feodo Tracker IoCs{Fore.RESET}")
             logging.info(
                 f"No matches for country code '{self.country_code}' were found")
         else:
             print(
-                f"[{time.strftime('%H:%M:%S')}] [INFO] {Fore.RED}Found matches for country code '{self.country_code}' in Feodo Tracker IOCs{Fore.RESET}")
+                f"[{time.strftime('%H:%M:%S')}] [INFO] {Fore.RED}Found matches for country code '{self.country_code}' in Feodo Tracker IoCs{Fore.RESET}")
             logging.info(
                 f"Found matches for country code '{self.country_code}'")
             json_object = json.dumps(matched_machines, indent=4)
@@ -301,8 +301,8 @@ class Hunter:
 
             if found_active:
                 print(
-                    f"[{time.strftime('%H:%M:%S')}] [INFO] {Fore.RED}Found active machines for country code '{self.country_code}' in Feodo Tracker IOCs{Fore.RESET}")
-                logging.info(f"Found active machines for country code '{self.country_code}' in Feodo Tracker IOCs")
+                    f"[{time.strftime('%H:%M:%S')}] [INFO] {Fore.RED}Found active machines for country code '{self.country_code}' in Feodo Tracker IoCs{Fore.RESET}")
+                logging.info(f"Found active machines for country code '{self.country_code}' in Feodo Tracker IoCs")
                 json_object = json.dumps(matched_machines_online, indent=4)
                 self.write_iocs_report(f"feodotracker_C2_{self.country_code}_active", json_object)
 
@@ -321,8 +321,8 @@ class Hunter:
             with open("urlhaus.zip", "wb") as f:
                 f.write(response.content)
 
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Extracting URLhaus IOCs feed from the retrieved zip file ...")
-            logging.info(f"Extracting URLhaus IOCs feed from the retrieved zip file ...'")
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Extracting URLhaus IoCs feed from the retrieved zip file ...")
+            logging.info(f"Extracting URLhaus IoCs feed from the retrieved zip file ...'")
             with zipfile.ZipFile("urlhaus.zip", "r") as zip_ref:
                 zip_ref.extractall(f"{self.reports_iocs_path}/")
 
@@ -441,8 +441,8 @@ class Hunter:
             with open("threatfox.zip", "wb") as f:
                 f.write(response.content)
 
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Extracting ThreatFox IOCs feed from the retrieved zip file ...")
-            logging.info(f"Extracting ThreatFox IOCs feed from the retrieved zip file ...'")
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Extracting ThreatFox IoCs feed from the retrieved zip file ...")
+            logging.info(f"Extracting ThreatFox IoCs feed from the retrieved zip file ...'")
             with zipfile.ZipFile("threatfox.zip", "r") as zip_ref:
                 zip_ref.extractall(f"{self.reports_iocs_path}/")
 
@@ -460,8 +460,8 @@ class Hunter:
                 threatfox_urls = json.load(f)
 
             # parse threatfox iocs
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Parsing extracted ThreatFox IOCs ...")
-            logging.info("Parsing extracted ThreatFox IOCs")
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Parsing extracted ThreatFox IoCs ...")
+            logging.info("Parsing extracted ThreatFox IoCs")
             data = []
             for key, value in threatfox_urls.items():
                 ioc_data = value[0]
@@ -485,7 +485,7 @@ class Hunter:
     def write_iocs_report(self, service_name, json_object):
         report_output_path = f"{self.reports_iocs_path}/{service_name}.json"
         print(
-            f"[{time.strftime('%H:%M:%S')}] [INFO] Writing IOCs to '{report_output_path} ...'")
-        logging.info(f"Writing IOCs to '{report_output_path}'")
+            f"[{time.strftime('%H:%M:%S')}] [INFO] Writing IoCs to '{report_output_path} ...'")
+        logging.info(f"Writing IoCs to '{report_output_path}'")
         with open(report_output_path, "w") as output:
             output.write(json_object)

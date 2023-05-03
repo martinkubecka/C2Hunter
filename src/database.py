@@ -4,6 +4,7 @@ import json
 from  colorama import Fore
 import sqlite3
 import hashlib
+import pprint
 
 
 class DatabaseHandler:
@@ -127,8 +128,8 @@ class DatabaseHandler:
         if len(updated_ip_address) > 0:
             print(f"[{time.strftime('%H:%M:%S')}] [INFO] Updated the status value in {len(updated_ip_address)} IP addresses")
             logging.info(f"Updated the status value in {len(updated_ip_address)} IP addresses")
-        #     for url in updated_ip_address:
-        #         print(url)
+        #     for ip in updated_ip_address:
+        #         print(ip)
         else:
             print(f"[{time.strftime('%H:%M:%S')}] [INFO] No cached entries were updated in 'feodotracker' table")
             logging.info(f"No cached entries were updated in 'feodotracker' table")
@@ -179,7 +180,7 @@ class DatabaseHandler:
                             WHERE id = ? AND last_seen_utc != ?''',
                         (last_seen_utc, entry_id, last_seen_utc))
 
-                # if entry was updated, add IOC to a list of updated IOCs
+                # if entry was updated, add IOC to a list of updated IoCs
                 if cursor.rowcount > 0:
                     updated_iocs.append(f"{entry.get('ioc')} : {entry.get('first_seen_utc')}")
 
@@ -189,8 +190,8 @@ class DatabaseHandler:
         logging.info(f"Total number of {self.connection.total_changes} rows inserted, deleted, updated since the database connection")
 
         if len(updated_iocs) > 0:
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Updated 'last seen' value in {len(updated_iocs)} IOCs")
-            logging.info(f"Updated 'last seen' value in {len(updated_iocs)} IOCs")
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Updated 'last seen' value in {len(updated_iocs)} IoCs")
+            logging.info(f"Updated 'last seen' value in {len(updated_iocs)} IoCs")
             # for ioc in updated_iocs:
             #     print(ioc)
         else:
@@ -203,6 +204,7 @@ class DatabaseHandler:
         print(f"[{time.strftime('%H:%M:%S')}] [INFO] Cashing retrieved data into 'shodan' table ...")
         logging.info(f"Cashing retrieved data into 'shodan' table")
         cursor = self.connection.cursor()
+
         create_table_query = '''CREATE TABLE IF NOT EXISTS shodan (
                                 product TEXT,
                                 ip_address TEXT PRIMARY KEY,
@@ -235,14 +237,39 @@ class DatabaseHandler:
                           search_operator)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
+        updated_ip_address = []
         for product in shodan_data:
             for entry in product:
                 hostnames = entry.get("hostnames")
                 entry["hostnames"] = json.dumps(hostnames) # serialize list to a string
                 data = tuple(entry.values())
                 cursor.execute(insert_query, data)
+                # update all data for the entry if 'last_seen' changed
+                last_seen = entry.get('last_seen')
+                if last_seen:
+                    cursor.execute('''UPDATE shodan
+                                    SET product = ?, asn = ?, org = ?, isp = ?, hostname = ?, country_name = ?, country_code = ?, city = ?, region_code = ?, last_seen = ?, product_query = ?, search_operator = ?
+                                    WHERE ip_address = ? AND last_seen != ?''',
+                                    (entry.get('product'), entry.get('asn'), entry.get('org'), entry.get('isp'), entry.get('hostnames'), entry.get('country_name'), entry.get('country_code'), entry.get('city'), entry.get('region_code'), entry.get('last_seen'), entry.get('product_query'), entry.get('search_operator'), 
+                                    entry.get('ip'), last_seen))
+
+                # if entry was updated, add IOC to a list of updated IoCs
+                if cursor.rowcount > 0:
+                    updated_ip_address.append(f"{entry.get('product')} : {entry.get('ip')}")
 
         self.connection.commit()
+
+        # print(f"[{time.strftime('%H:%M:%S')}] [INFO] Total number of {self.connection.total_changes} rows inserted, deleted or updated since the database connection")
+        logging.info(f"Total number of {self.connection.total_changes} rows inserted, deleted, updated since the database connection")
+
+        if len(updated_ip_address) > 0:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Updated entry data for {len(updated_ip_address)} IP addresses")
+            logging.info(f"Updated entry data for {len(updated_ip_address)} IP addresses")
+            # for ip in updated_ip_address:
+            #     print(ip)
+        else:
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] No cached entries were updated in 'shodan' table")
+            logging.info(f"No cached entries were updated in 'shodan' table")
 
         cursor.close()
 

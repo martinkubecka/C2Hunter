@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument('-o', '--output', metavar="DIRECTORY", default="reports",
                         help='output directory (default: "reports/")')
     parser.add_argument('-s', '--search-country-code', action='store_true',
-                        help='search IOCs based on configured country code')
+                        help='search IoCs based on the configured country code')
     parser.add_argument('-p', '--print-active', action='store_true',
                         help='print filtered active enpoints to the console')
 
@@ -53,11 +53,11 @@ def parse_args():
     return parser.parse_args()
 
 
-def is_valid_file(filename, filetype):
+def check_file_extension(filename, extension):
     if not os.path.exists(filename):
         return False
     else:
-        if filetype == "yml":
+        if extension == "yml":
             if not filename.endswith(".yml") or filename.endswith(".yaml"):
                 return False
     return True
@@ -74,9 +74,15 @@ def init_logger():
 
 
 def load_config(filename):
-    with open(filename, "r") as ymlfile:
-        config = yaml.safe_load(ymlfile)
-    return config
+    try:
+        with open(filename, "r") as ymlfile:
+            config = yaml.safe_load(ymlfile)
+        return config
+    except yaml.parser.ParserError as e:
+        print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Error occurred while parsing the configuration file")
+        logging.error(f"Error occurred while parsing the configuration file ({e})")
+        print("\nExiting program ...\n")
+        sys.exit(1)
 
 
 def directory_structure(output_dir):
@@ -154,8 +160,8 @@ def directory_structure(output_dir):
 
         if not os.path.isdir(iocs_dir):
             print(
-                f"[{time.strftime('%H:%M:%S')}] [INFO] Creating missing directory '{iocs_dir}' for storing IOCs")
-            logging.info(f"Creating directory '{iocs_dir}' for storing IOCs'")
+                f"[{time.strftime('%H:%M:%S')}] [INFO] Creating missing directory '{iocs_dir}' for storing IoCs")
+            logging.info(f"Creating directory '{iocs_dir}' for storing IoCs'")
             os.mkdir(iocs_dir)
 
         if not os.path.isdir(db_dir):
@@ -197,7 +203,7 @@ def main():
     if not sys.platform.startswith('linux'):
         print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Unsupported platform")
         print("\nExiting program ...\n")
-        exit(1)
+        sys.exit(1)
 
     os.system("clear")
     init_logger()
@@ -210,16 +216,16 @@ def main():
     print('-' * os.get_terminal_size().columns)
 
     config_path = args.config
-    if is_valid_file(config_path, "yml"):
+    if check_file_extension(config_path, "yml"):
         print(
-            f"[{time.strftime('%H:%M:%S')}] [INFO] Loading config '{config_path}' ...")
-        logging.info(f"Loading config '{config_path}'")
+            f"[{time.strftime('%H:%M:%S')}] [INFO] Loading configuration '{config_path}' file ...")
+        logging.info(f"Loading configuration '{config_path}' file")
         config = load_config(config_path)
     else:
         print(
-            f"[{time.strftime('%H:%M:%S')}] [ERROR] Provided config file '{config_path}' does not exist or it is not a yaml file")
+            f"[{time.strftime('%H:%M:%S')}] [ERROR] Provided configuration file '{config_path}' does not exist or it is not a yaml file")
         logging.error(
-            f"Provided config file '{config_path}' does not exist or it is not a yaml file")
+            f"Provided configuration file '{config_path}' does not exist or it is not a yaml file")
         print("\nExiting program ...\n")
         sys.exit(1)
 
@@ -278,13 +284,13 @@ def main():
 
     if console_active_print:
         if urlhaus_cc_active:
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in URLhaus IOCs with country code '{config.get('country_code')}' ...")
-            logging.info(f"Listing found active machines in URLhaus IOCs with country code '{config.get('country_code')}'")
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in URLhaus IoCs with country code '{config.get('country_code')}' ...")
+            logging.info(f"Listing found active machines in URLhaus IoCs with country code '{config.get('country_code')}'")
             pprint.pprint(urlhaus_cc_active)
             print('-' * os.get_terminal_size().columns)
         if feodotracker_cc_active:
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in Feodo Tracker IOCs with country code '{config.get('country_code')}' ...")
-            logging.info(f"Listing found active machines in Feodo Tracker IOCs with country code '{config.get('country_code')}'")
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in Feodo Tracker IoCs with country code '{config.get('country_code')}' ...")
+            logging.info(f"Listing found active machines in Feodo Tracker IoCs with country code '{config.get('country_code')}'")
             pprint.pprint(feodotracker_cc_active)
             print('-' * os.get_terminal_size().columns)
 
