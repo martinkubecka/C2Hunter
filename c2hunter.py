@@ -19,14 +19,16 @@ def banner():
 def arg_formatter():
     def formatter(prog): return argparse.HelpFormatter(
         prog, max_help_position=52)
+
     return formatter
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(formatter_class=arg_formatter(
-    ), description='DESCRIPTION')
+    parser = argparse.ArgumentParser(formatter_class=arg_formatter(),
+                                     description='Utilize fingerprinting techniques to actively hunt for Command and Control (C2) servers on Shodan. In addition, incorporate threat feeds from Feodo Tracker, ThreatFox, and URLhaus to generate a personalized, local database of C2 servers.')
 
-    parser.add_argument('-q', '--quiet', help="do not print a banner", action='store_true')
+    parser.add_argument(
+        '-q', '--quiet', help="do not print a banner", action='store_true')
     parser.add_argument('-c', '--config', metavar='FILE', default="config/config.yml",
                         help='config file (default: "config/config.yml")')
     parser.add_argument('-o', '--output', metavar="DIRECTORY", default="reports",
@@ -34,20 +36,20 @@ def parse_args():
     parser.add_argument('-s', '--search-country-code', action='store_true',
                         help='search IoCs based on the configured country code')
     parser.add_argument('-p', '--print-active', action='store_true',
-                        help='print filtered active enpoints to the console')
+                        help='print filtered active endpoints to the console')
 
     disable_group = parser.add_argument_group('disable options')
     disable_group.add_argument('-ds', '--disable-shodan',
-                        help="disable querying Shodan", action='store_true')
+                               help="disable querying Shodan", action='store_true')
     disable_group.add_argument('-df', '--disable-feodotracker',
-                        help="disable querying Feodo Tracker", action='store_true')
+                               help="disable querying Feodo Tracker", action='store_true')
     disable_group.add_argument('-du', '--disable-urlhaus',
-                        help="disable querying URLhaus", action='store_true')
+                               help="disable querying URLhaus", action='store_true')
     disable_group.add_argument('-dt', '--disable-threatfox',
-                        help="disable querying ThreatFox", action='store_true')
-    
+                               help="disable querying ThreatFox", action='store_true')
+
     disable_group.add_argument('-db', '--disable-backup', action='store_false',
-                        help='disable file reports backup')
+                               help='disable file reports backup')
 
     # return parser.parse_args(args=None if sys.argv[1:] else ['--help'])
     return parser.parse_args()
@@ -69,7 +71,8 @@ def init_logger():
         print(f"[{time.strftime('%H:%M:%S')}] [INFO] Creating '{logging_path}' directory for storing log files")
         os.mkdir(logging_path)
     logging.basicConfig(format='%(created)f; %(asctime)s; %(levelname)s; %(name)s; %(message)s',
-                        filename=f"{logging_path}/{(os.path.splitext(__file__)[0]).split('/')[-1]}.log", level=logging.DEBUG)
+                        filename=f"{logging_path}/{(os.path.splitext(__file__)[0]).split('/')[-1]}.log",
+                        level=logging.DEBUG)
     logger = logging.getLogger('__name__')
 
 
@@ -79,8 +82,10 @@ def load_config(filename):
             config = yaml.safe_load(ymlfile)
         return config
     except yaml.parser.ParserError as e:
-        print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Error occurred while parsing the configuration file")
-        logging.error(f"Error occurred while parsing the configuration file ({e})")
+        print(
+            f"[{time.strftime('%H:%M:%S')}] [ERROR] Error occurred while parsing the configuration file")
+        logging.error(
+            f"Error occurred while parsing the configuration file ({e})")
         print("\nExiting program ...\n")
         sys.exit(1)
 
@@ -114,7 +119,7 @@ def directory_structure(output_dir):
         os.mkdir(csv_dir)
         os.mkdir(raw_dir)
         os.mkdir(iocs_dir)
-        os.mkidir(db_dir)
+        os.mkdir(db_dir)
         print(
             f"[{time.strftime('%H:%M:%S')}] [INFO] Creating '{backups_dir}' directory for storing reports backups")
         logging.info(
@@ -176,7 +181,8 @@ def directory_structure(output_dir):
 
 def backup_recent_reports(report_dir, backups_dir):
     new_backup_dir = f"{backups_dir}/{datetime.today().strftime('%Y-%m-%d')}"
-    print(f"[{time.strftime('%H:%M:%S')}] [INFO] Creating '{new_backup_dir}' directory to store the most recent reports ...")
+    print(
+        f"[{time.strftime('%H:%M:%S')}] [INFO] Creating '{new_backup_dir}' directory to store the most recent reports ...")
     logging.info(
         f"Creating '{new_backup_dir}' directory to store the most recent reports")
     if os.path.exists(new_backup_dir):
@@ -250,28 +256,37 @@ def main():
         database_handler.feodotracker_table(feodotracker_c2_data)
 
         if args.search_country_code:
+            print(('- ' * (terminal_size.columns // 2)) +
+                  ('-' * (terminal_size.columns % 2)))
             if config.get('country_code'):
-                feodotracker_cc, feodotracker_cc_active = c2hunter.search_feodotracker(feodotracker_c2_data)
+                feodotracker_cc, feodotracker_cc_active = c2hunter.search_feodotracker(
+                    feodotracker_c2_data)
                 print('-' * os.get_terminal_size().columns)
             else:
-                print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Country code value is required for the selected search option")
-                logging.error(f"Country code value is required for the selected search option")
-                print('-' * os.get_terminal_size().columns)
+                print(
+                    f"[{time.strftime('%H:%M:%S')}] [ERROR] Country code value is required for the selected search option")
+                logging.error(
+                    f"Country code value is required for the selected search option")
+        print('-' * os.get_terminal_size().columns)
 
     urlhaus_cc_active = []
     if not args.disable_urlhaus:
         urlhaus_c2_data = c2hunter.query_urlhaus()
         database_handler.urlhaus_table(urlhaus_c2_data)
-        
+
         if args.search_country_code:
+            print(('- ' * (terminal_size.columns // 2)) +
+                  ('-' * (terminal_size.columns % 2)))
             if config.get('country_code'):
                 urlhaus_cc_data = c2hunter.query_urlhaus_cc()
                 urlhaus_cc_active = c2hunter.search_urlhaus(urlhaus_cc_data)
                 print('-' * os.get_terminal_size().columns)
             else:
-                print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Country code value is required for the selected search option")
-                logging.error(f"Country code value is required for the selected search option")
-                print('-' * os.get_terminal_size().columns)
+                print(
+                    f"[{time.strftime('%H:%M:%S')}] [ERROR] Country code value is required for the selected search option")
+                logging.error(
+                    f"Country code value is required for the selected search option")
+        print('-' * os.get_terminal_size().columns)
 
     if not args.disable_threatfox:
         threatfox_data = c2hunter.get_threatfox_iocs()
@@ -284,13 +299,17 @@ def main():
 
     if console_active_print:
         if urlhaus_cc_active:
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in URLhaus IoCs with country code '{config.get('country_code')}' ...")
-            logging.info(f"Listing found active machines in URLhaus IoCs with country code '{config.get('country_code')}'")
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in URLhaus IoCs with country code '{config.get('country_code')}' ...")
+            logging.info(
+                f"Listing found active machines in URLhaus IoCs with country code '{config.get('country_code')}'")
             pprint.pprint(urlhaus_cc_active)
             print('-' * os.get_terminal_size().columns)
         if feodotracker_cc_active:
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in Feodo Tracker IoCs with country code '{config.get('country_code')}' ...")
-            logging.info(f"Listing found active machines in Feodo Tracker IoCs with country code '{config.get('country_code')}'")
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [INFO] Listing found active machines in Feodo Tracker IoCs with country code '{config.get('country_code')}' ...")
+            logging.info(
+                f"Listing found active machines in Feodo Tracker IoCs with country code '{config.get('country_code')}'")
             pprint.pprint(feodotracker_cc_active)
             print('-' * os.get_terminal_size().columns)
 

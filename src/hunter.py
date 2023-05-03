@@ -5,8 +5,7 @@ import csv
 import json
 import logging
 import requests
-import pprint
-from  colorama import Fore
+from colorama import Fore
 import zipfile
 import shodan
 from shodan.exception import APIError
@@ -15,14 +14,17 @@ from shodan.exception import APIError
 class Hunter:
     def __init__(self, config, output_dir):
         self.logger = logging.getLogger(__name__)
+
         self.config = config
-        self.shodan_api_key = self.get_shodan_api_key()
+        self.api_keys = self.config.get('api_keys')
+        self.shodan_api_key = self.api_keys.get('shodan')
         self.api = shodan.Shodan(self.shodan_api_key)
+
         self.country_code = config.get('country_code')
 
         self.reports_path = output_dir
         self.config_path = f"{os.path.dirname(os.path.realpath(sys.argv[0]))}/config"
-        self.reports_ips_path = f"{self.reports_path}/ips" 
+        self.reports_ips_path = f"{self.reports_path}/ips"
         self.reports_json_path = f"{self.reports_path}/json"
         self.reports_csv_path = f"{self.reports_path}/csv"
         self.reports_raw_path = f"{self.reports_path}/raw"
@@ -30,18 +32,10 @@ class Hunter:
 
         self.feodotracker_c2_url = self.config.get('feeds').get('feodotracker')
         self.urlhaus_feed_url = self.config.get('feeds').get('urlhaus')
-        self.urlhaus_cc_feed_url = f"{self.config.get('feeds').get('urlhaus_cc_feed')}{self.country_code}" 
+        self.urlhaus_cc_feed_url = f"{self.config.get('feeds').get('urlhaus_cc_feed')}{self.country_code}"
         self.threatfox_feed_url = self.config.get('feeds').get('threatfox')
 
         self.products = self.get_search_operators("c2")  # "malware", "tools"
-
-    def get_shodan_api_key(self):
-        self.api_keys = self.config.get('api_keys')
-        if self.api_keys:
-            shodan_api_key = self.api_keys.get('shodan')
-            # print(f"API KEY: {shodan_api_key}")
-            return shodan_api_key
-        return
 
     def get_search_operators(self, type):
         file_name = f"{self.config_path}/{type}_search_operators.json"
@@ -54,17 +48,17 @@ class Hunter:
         # logging.info("SHODAN")
         terminal_size = os.get_terminal_size()
         # selected_machines = {}  # JSON report of selected machines based on the configured country code  
-        selected_entries = []   # list of selected machines
+        selected_entries = []  # list of selected machines
 
         shodan_c2_data = []
         for product, queries in self.products.items():
             # raw_responses = {}  # unfiltered JSON responses
             raw_responses_entries = []
             # products = {}   # JSON report
-            product_entries = []    # list of products from one page result
+            product_entries = []  # list of products from one page result
             product_table = []  # CSV report
             entries_count = 0
-            ip_list = []    # TXT report
+            ip_list = []  # TXT report
 
             for query in queries:
                 # single quote used because of JSON formating
@@ -73,7 +67,7 @@ class Hunter:
                 print(
                     f"[{time.strftime('%H:%M:%S')}] [INFO] Initializing search for {product} with '{query}' search query ...")
                 self.logger.info(
-                    f"Initializing search for {product} with '{query}' search quer")
+                    f"Initializing search for {product} with '{query}' search query")
 
                 # NOTE: Please purchase a Shodan membership to access more than 2 pages of results ...
                 for i in range(1, 100):
@@ -94,7 +88,7 @@ class Hunter:
                             attempts -= 1
                             time.sleep(3)
                             continue
-                        except:  # catch different error than 'APIError'
+                        except Exception as e:  # catch different error than 'APIError'
                             print(f"[{time.strftime('%H:%M:%S')}] [ERROR] {e}")
                             self.logger.error(f"{e}")
                             print("\nExiting program ...\n")
@@ -146,7 +140,7 @@ class Hunter:
                             else:
                                 country_name, country_code, city, region_code = "", "", "", ""
                             last_seen = service.get('timestamp')
-                            
+
                             if not ip in ip_list:
 
                                 entry = [product_name, ip, asn, org, isp, hostnames, country_name,
@@ -168,14 +162,12 @@ class Hunter:
                                     product_query=product,
                                     search_operator=query
                                 )
-                                # TODO: ADD one big list of all products for DB caching
                                 product_entries.append(service_entry)
 
                                 if country_code == self.country_code:
                                     selected_entries.append(service_entry)
 
                             ip_list.append(ip)
-                            # print(ip)
 
                 print(
                     f"[{time.strftime('%H:%M:%S')}] [INFO] Processed {len(ip_list)} IP addresses so far")
@@ -269,12 +261,13 @@ class Hunter:
         return feodotracker_c2
 
     def search_feodotracker(self, feodotracker_c2):
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Searching for country code '{self.country_code}' in Feodo Tracker IoCs ...")
+        print(
+            f"[{time.strftime('%H:%M:%S')}] [INFO] Searching for country code '{self.country_code}' in Feodo Tracker IoCs ...")
         logging.info(f"Searching for country code '{self.country_code}' in IoCs ...")
-        
+
         found = False
         found_active = False
-        matched_machines = []        
+        matched_machines = []
         matched_machines_online = []
 
         # IP addresses that were acting as a botnet C2 within the past 30 days
@@ -343,8 +336,8 @@ class Hunter:
             logging.info(f"Removing extracted URLhaus CSV feed ...'")
             os.remove(f"{self.reports_iocs_path}/urlhaus.csv")
 
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Parsing fetched data ...")
-            logging.info("Parsing fetched data")
+            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Parsing extracted URLhaus IoCs ...")
+            logging.info("Parsing extracted URLhaus IoCs")
             data = []
             for line in response_data:
                 # retrieved content has a header created from '#' symbols
@@ -368,15 +361,16 @@ class Hunter:
         return data
 
     def query_urlhaus_cc(self):
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching recent URLhaus Country feed for '{self.country_code}' ...")
+        print(
+            f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching recent URLhaus Country feed for '{self.country_code}' ...")
         logging.info(f"Fetching recent URLhaus Country feed for '{self.country_code}'")
 
         response = requests.get(self.urlhaus_cc_feed_url)
         response_content = response.content.decode("utf-8")
         response_data = response_content.split("\n")
 
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Parsing fetched data ...")
-        logging.info("Parsing fetched data")
+        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Parsing fetched URLhaus Country feed ...")
+        logging.info("Parsing fetched URLhaus Country feed")
         data = []
         for line in response_data:
             # retrieved content has a header created from '#' symbols
@@ -395,16 +389,18 @@ class Hunter:
                 data.append(entry)
 
         json_object = json.dumps(data, indent=4)
-        if data:    # write only if data is not empty
+        if data:  # write only if data is not empty
             self.write_iocs_report(f"urlhaus_C2_{self.country_code}", json_object)
 
         return data
 
     def search_urlhaus(self, urlhaus_feed):
 
-        print(f"[{time.strftime('%H:%M:%S')}] [INFO] Searching in URLhaus feed for active URLs whose domain name resolve to '{self.country_code}' IP address ...")
-        logging.info(f"Searching in URLhaus feed for active URLs whose domain name resolve to '{self.country_code}' IP address ...")
-        
+        print(
+            f"[{time.strftime('%H:%M:%S')}] [INFO] Searching in URLhaus feed for active URLs whose domain name resolve to '{self.country_code}' IP address ...")
+        logging.info(
+            f"Searching in URLhaus feed for active URLs whose domain name resolve to '{self.country_code}' IP address ...")
+
         found = False
         matched_machines_online = []
 
@@ -431,7 +427,7 @@ class Hunter:
     def get_threatfox_iocs(self):
         print(f"[{time.strftime('%H:%M:%S')}] [INFO] Fetching ThreatFox full data dump ...")
         logging.info(f"Fetching ThreatFox full data dump ...'")
-        
+
         response = requests.get(self.threatfox_feed_url)
 
         if response.status_code == 200:
@@ -441,7 +437,8 @@ class Hunter:
             with open("threatfox.zip", "wb") as f:
                 f.write(response.content)
 
-            print(f"[{time.strftime('%H:%M:%S')}] [INFO] Extracting ThreatFox IoCs feed from the retrieved zip file ...")
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [INFO] Extracting ThreatFox IoCs feed from the retrieved zip file ...")
             logging.info(f"Extracting ThreatFox IoCs feed from the retrieved zip file ...'")
             with zipfile.ZipFile("threatfox.zip", "r") as zip_ref:
                 zip_ref.extractall(f"{self.reports_iocs_path}/")
@@ -476,7 +473,7 @@ class Hunter:
                     tags=ioc_data.get('tags')
                 )
                 data.append(entry)
-            
+
             return data
 
         else:
