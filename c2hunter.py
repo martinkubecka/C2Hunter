@@ -113,18 +113,24 @@ def directory_structure(output_dir):
             f"[{time.strftime('%H:%M:%S')}] [INFO] Creating '{report_dir}' directory structure for storing reports")
         logging.info(
             f"Creating '{report_dir}' directory structure for storing reports")
-        os.mkdir(report_dir)
-        os.mkdir(ips_dir)
-        os.mkdir(json_dir)
-        os.mkdir(csv_dir)
-        os.mkdir(raw_dir)
-        os.mkdir(iocs_dir)
-        os.mkdir(db_dir)
-        print(
-            f"[{time.strftime('%H:%M:%S')}] [INFO] Creating '{backups_dir}' directory for storing reports backups")
-        logging.info(
-            f"Creating '{backups_dir}' directory for storing reports backups")
-        os.mkdir(backups_dir)
+        try:
+            os.mkdir(report_dir)
+            os.mkdir(ips_dir)
+            os.mkdir(json_dir)
+            os.mkdir(csv_dir)
+            os.mkdir(raw_dir)
+            os.mkdir(iocs_dir)
+            os.mkdir(db_dir)
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [INFO] Creating '{backups_dir}' directory for storing reports backups")
+            logging.info(
+                f"Creating '{backups_dir}' directory for storing reports backups")
+            os.mkdir(backups_dir)
+        except FileExistsError as e:
+            print(f"[{time.strftime('%H:%M:%S')}] [ERROR] Collision with an existing directory occurred while trying to create the required directory structure")
+            logging.error("Collision with an existing directory occurred while trying to create the required directory structure.")
+            print("\nExiting program ...\n")
+            sys.exit(1)
 
     # output directory exists but check for the subdirectory structure
     else:
